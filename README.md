@@ -49,7 +49,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Requer o secret `NUGET_API_KEY` no repositorio (API key do nuget.org com escopo *Push* para o pacote `PosTech.Fiap.CloudGames.Contracts`). O nuget.org leva alguns minutos para indexar uma versao nova.
+A autenticacao usa **Trusted Publishing** (OIDC): a policy `fcg-contracts-publish` no nuget.org (owner `sampaiobrenner`) autoriza este repositorio e o workflow `publish.yml` a publicar com um token temporario, sem secrets. O nuget.org leva alguns minutos para indexar uma versao nova.
 
 ## Build
 
