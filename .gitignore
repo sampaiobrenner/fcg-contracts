@@ -1,0 +1,35 @@
+## .NET / build
+bin/
+obj/
+out/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+project.lock.json
+artifacts/
+
+## Rider / VS / VS Code
+.idea/
+.vs/
+*.DotSettings.user
+
+## Test / coverage
+[Tt]est[Rr]esults/
+coverage/
+*.coverage
+*.trx
+TestResults/
+LivingDoc*.html
+
+## Reqnroll / SpecFlow generated
+*.feature.cs
+
+## Logs / local
+logs/
+*.log
+appsettings.*.local.json
+
+## OS
+.DS_Store
+Thumbs.db

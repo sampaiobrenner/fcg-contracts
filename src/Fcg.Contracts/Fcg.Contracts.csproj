@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Fcg.Contracts</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>FCG - Grupo Fase 2</Authors>
+    <Description>Contratos de integracao (eventos, filas e claims) da plataforma FIAP Cloud Games.</Description>
+    <RepositoryUrl>https://github.com/sampaiobrenner/fcg-contracts</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
