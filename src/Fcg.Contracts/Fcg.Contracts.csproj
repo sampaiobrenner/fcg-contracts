@@ -1,12 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Fcg.Contracts</PackageId>
+    <PackageId>PosTech.Fiap.CloudGames.Contracts</PackageId>
     <Version>0.1.0</Version>
     <Authors>FCG - Grupo Fase 2</Authors>
     <Description>Contratos de integracao (eventos, filas e claims) da plataforma FIAP Cloud Games.</Description>
     <RepositoryUrl>https://github.com/sampaiobrenner/fcg-contracts</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>fiap;postech;cloudgames;masstransit;contracts</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

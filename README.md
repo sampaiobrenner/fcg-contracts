@@ -1,8 +1,20 @@
 # fcg-contracts
 
-Contratos de integracao da plataforma **FIAP Cloud Games (FCG) - Fase 2**, distribuidos como o pacote NuGet `Fcg.Contracts`.
+Contratos de integracao da plataforma **FIAP Cloud Games (FCG) - Fase 2**, distribuidos no nuget.org como o pacote [`PosTech.Fiap.CloudGames.Contracts`](https://www.nuget.org/packages/PosTech.Fiap.CloudGames.Contracts) (namespace `Fcg.Contracts`).
 
 Fonte unica de verdade para: eventos trafegados no RabbitMQ, nomes de filas e claims do JWT. A especificacao completa (topologia, convencoes de runtime, contratos REST) esta em [docs/contratos.md](docs/contratos.md).
+
+## Uso
+
+```bash
+dotnet add package PosTech.Fiap.CloudGames.Contracts
+```
+
+Com Central Package Management, declare a versao em `Directory.Packages.props`:
+
+```xml
+<PackageVersion Include="PosTech.Fiap.CloudGames.Contracts" Version="0.1.0" />
+```
 
 ## Conteudo
 
@@ -27,6 +39,17 @@ O MassTransit roteia mensagens pelo tipo. Cada evento declara `[MessageUrn]` e `
 ## Versionamento
 
 SemVer. Evolucao somente aditiva (campos opcionais). Mudanca incompativel = novo namespace `V2` publicado em paralelo ao `V1` (parallel change) ate que todos os consumidores migrem.
+
+## Publicacao
+
+Automatica pelo workflow [publish.yml](.github/workflows/publish.yml) ao criar uma tag `v*` na `main`. A versao do pacote e a da tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+A autenticacao usa **Trusted Publishing** (OIDC): a policy `fcg-contracts-publish` no nuget.org (owner `sampaiobrenner`) autoriza este repositorio e o workflow `publish.yml` a publicar com um token temporario, sem secrets. O nuget.org leva alguns minutos para indexar uma versao nova.
 
 ## Build
 
