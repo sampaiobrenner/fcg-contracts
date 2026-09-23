@@ -5,22 +5,51 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-test-pack:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
 
+      - uses: actions/setup-java@v4
+        if: env.SONAR_TOKEN != ''
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Sonar - inicio
+        if: env.SONAR_TOKEN != ''
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          dotnet sonarscanner begin \
+            /k:"sampaiobrenner_fcg-contracts" \
+            /o:"sampaiobrenner" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="TestResults/*/coverage.opencover.xml" \
+            /d:sonar.cs.vstest.reportsPaths="TestResults/*.trx" \
+            /d:sonar.coverage.exclusions="test/**"
+
       - run: dotnet restore
 
       - run: dotnet build --no-restore -c Release
 
-      - run: dotnet test --no-build -c Release
+      - name: Testes com cobertura
+        run: dotnet test --no-build -c Release --logger trx --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover"
+
+      - name: Sonar - fim
+        if: env.SONAR_TOKEN != ''
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
       - run: dotnet pack src/Fcg.Contracts --no-build -c Release -o artifacts
 
