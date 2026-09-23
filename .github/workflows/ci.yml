@@ -67,4 +67,8 @@ jobs:
         with:
           node-version: 22
 
-      - run: npx -y @asyncapi/cli validate docs/asyncapi.yaml
+      - name: Instalar AsyncAPI CLI (versao fixa, sem scripts de instalacao)
+        run: npm install --no-save --ignore-scripts @asyncapi/cli@6.2.0
+
+      - name: Validar asyncapi.yaml
+        run: ./node_modules/.bin/asyncapi validate docs/asyncapi.yaml
