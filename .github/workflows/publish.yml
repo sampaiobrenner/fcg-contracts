@@ -22,11 +22,11 @@ jobs:
 
       - run: dotnet restore
 
-      - run: dotnet build --no-restore -c Release -p:Version=$PACKAGE_VERSION
+      - run: dotnet build --no-restore -c Release -p:Version="$PACKAGE_VERSION"
 
       - run: dotnet test --no-build -c Release
 
-      - run: dotnet pack src/Fcg.Contracts --no-build -c Release -o artifacts -p:Version=$PACKAGE_VERSION
+      - run: dotnet pack src/Fcg.Contracts --no-build -c Release -o artifacts -p:Version="$PACKAGE_VERSION"
 
       - name: Login no nuget.org (Trusted Publishing / OIDC)
         id: nuget-login
