@@ -1,6 +1,6 @@
 # Contratos de integracao - FCG Fase 2
 
-> **Status: proposta (v0.1.0).** Aprovacao pendente na historia FD-01 (sampaiobrenner/PosTech.Fiap.CloudGames#7).
+> **Status: proposta (v0.1.0).** Aprovacao pendente na historia FD-01 do [Azure Boards](https://dev.azure.com/PosTech-Fiap-CloudGames/PosTech-Fiap-CloudGames/_workitems).
 > Apos aprovacao pelos 5 membros o pacote e versionado como `1.0.0`. Mudancas somente via PR neste repositorio.
 
 ## 1. Eventos v1 (`Fcg.Contracts.Events.V1`)
@@ -14,7 +14,7 @@ public enum PaymentStatus { Approved = 1, Rejected = 2 }
 public sealed record PaymentProcessedEvent(Guid EventId, DateTime OccurredAt, Guid OrderId, Guid UserId, Guid GameId, decimal Price, PaymentStatus Status, string? Reason);
 ```
 - Cada record com `[MessageUrn("fcg:<nome>:v1")]` e `[EntityName("fcg.<nome>.v1")]` (roteamento independente de namespace).
-- `OrderId` e o `CorrelationId` do fluxo de compra.
+- `EventId` novo (`Guid.CreateVersion7()`) a cada publicacao. `OrderId` e o `CorrelationId` do fluxo de compra.
 - Datas em UTC; `decimal` com 2 casas; enums serializados como string.
 - Evolucao: apenas campos opcionais adicionados. Quebra = novo `V2` em paralelo (parallel change).
 
@@ -25,12 +25,21 @@ public sealed record PaymentProcessedEvent(Guid EventId, DateTime OccurredAt, Gu
 | `OrderPlacedEvent` | Catalog | `payments.order-placed` |
 | `PaymentProcessedEvent` | Payments | `catalog.payment-processed`, `notifications.payment-processed` |
 
-Padrao de consumo: retry imediato 3x + redelivery 5s/15s/30s, DLQ `_error` do MassTransit, consumidores idempotentes por `OrderId`/`EventId`, publicacao via EF Core Outbox do MassTransit.
+Exchanges: uma por evento, com o nome do `[EntityName]` (`fcg.user-created.v1`, `fcg.order-placed.v1`, `fcg.payment-processed.v1`), criadas pelo MassTransit.
+
+Filas: cada consumidor fixa o nome da fila com a constante de `Fcg.Contracts.Messaging.QueueNames` via `ConsumerDefinition.EndpointName` (nunca o nome gerado pelo formatter). Os nomes nao sao configuraveis por variavel de ambiente.
+
+Padrao de consumo:
+- Retry em memoria `UseMessageRetry` com intervalos 1s/5s/15s/30s, ignorando `BusinessException` e `ValidationException`. Esgotado, a mensagem vai para a fila `<fila>_error` do MassTransit.
+- Nao usamos redelivery atrasado: ele exige o plugin `rabbitmq_delayed_message_exchange`, ausente na imagem `rabbitmq:4-management-alpine`.
+- Publicacao via EF Core Outbox do MassTransit (evento gravado na mesma transacao do dado de negocio).
+- Consumidores idempotentes: Inbox do MassTransit (por `MessageId`) + regra de negocio por `OrderId`/`EventId` descrita em cada servico.
 
 ## 3. Autenticacao
 - UsersAPI **emite** o JWT; demais APIs **apenas validam** (chave simetrica compartilhada).
-- Claims: `sub` (UserId), `email`, `name`, `role` (`User` | `Administrator`).
-- `Jwt__Issuer=fcg-users-api`, `Jwt__Audience=fcg`, `Jwt__Key` em Secret.
+- Assinatura HS256. Claims: `sub` (UserId), `email`, `name`, `role` (`User` | `Administrator`), `jti`. Usar as claims curtas (constantes `FcgClaimTypes`), nunca as URIs de `System.Security.Claims.ClaimTypes`.
+- `Jwt__Issuer=fcg-users-api`, `Jwt__Audience=fcg`, `Jwt__Key` em Secret (>= 32 caracteres, igual em todos os servicos).
+- Expiracao: `Jwt__ExpirationMinutes` (apenas UsersAPI, ConfigMap, default `60`).
 
 ## 4. Convencoes de runtime
 | Item | Valor |
@@ -39,11 +48,37 @@ Padrao de consumo: retry imediato 3x + redelivery 5s/15s/30s, DLQ `_error` do Ma
 | Services K8s | `users-api:80`, `catalog-api:80`, `payments-api:80`, `notifications-api:80`, `rabbitmq:5672`, `postgres:5432` |
 | Health | `/health/live`, `/health/ready` (ready checa DB + RabbitMQ) |
 | Banco | 1 Postgres, 1 database por servico: `fcg_users`, `fcg_catalog`, `fcg_payments`, `fcg_notifications` |
-| ConfigMap | `RabbitMq__Host`, `RabbitMq__VirtualHost`, `Messaging__Queues__*`, `Jwt__Issuer`, `Jwt__Audience` |
+| ConfigMap | `ASPNETCORE_ENVIRONMENT`, `Database__ApplyMigrationsOnStartup`, `RabbitMq__Host`, `RabbitMq__VirtualHost`, `Jwt__Issuer`, `Jwt__Audience`; UsersAPI: `Jwt__ExpirationMinutes`; PaymentsAPI: `Payments__ApprovalLimit` |
 | Secret | `ConnectionStrings__Default`, `RabbitMq__Username`, `RabbitMq__Password`, `Jwt__Key` |
-| Erros HTTP | `ProblemDetails` (RFC 7807) |
+| Erros HTTP | `ProblemDetails` (RFC 7807): 400 validacao, 401 nao autenticado, 403 sem permissao, 404 nao encontrado, 409 conflito, 422 regra de negocio |
+| JSON REST | camelCase, enums como string, datas ISO 8601 UTC |
 
 ## 5. Contratos REST novos
-- Catalog: `POST /api/v1/orders {gameId}` -> `202 {orderId, status: "Pending", price}`; `GET /api/v1/orders/{id}`; `GET /api/v1/library`.
-- Payments: `GET /api/v1/payments/{orderId}`.
-- Regra de simulacao: `Price <= Payments__ApprovalLimit` (default 300) -> Approved; senao Rejected.
+
+Todos exigem token (`Authorization: Bearer <jwt>`).
+
+### Catalog: `POST /api/v1/orders`
+Request `{ "gameId": "uuid" }`.
+
+| Status | Quando | Corpo |
+|---|---|---|
+| `202 Accepted` + `Location: /api/v1/orders/{orderId}` | pedido criado | `{ "orderId": "uuid", "status": "Pending", "price": 199.90 }` |
+| `404` | jogo inexistente ou inativo | ProblemDetails |
+| `409` | jogo ja na biblioteca ou pedido `Pending` para o mesmo usuario/jogo | ProblemDetails |
+
+`price` e o preco efetivo (promocao ativa de maior desconto aplicada).
+
+### Catalog: `GET /api/v1/orders/{id}`
+`200` `{ "orderId", "userId", "gameId", "price", "status": "Pending|Completed|Rejected", "reason": null, "createdAt", "updatedAt" }`. Somente o dono ou `Administrator`; qualquer outro recebe `404`.
+
+### Catalog: `GET /api/v1/library`
+`200` `[ { "gameId", "title", "genre", "pricePaid", "acquiredAt" } ]` do usuario do token.
+
+### Payments: `GET /api/v1/payments/{orderId}`
+`200` `{ "paymentId", "orderId", "userId", "gameId", "amount", "status": "Approved|Rejected", "reason", "processedAt" }`. Somente o dono ou `Administrator`; senao `404`.
+
+### Regra de simulacao
+`Price <= Payments__ApprovalLimit` (default `300`) -> `Approved` com `Reason = null`; senao `Rejected` com `Reason` preenchido.
+
+## 6. Mudancas neste contrato
+Somente via PR neste repositorio, com aprovacao do time. Depois do merge, publicar nova versao do pacote (tag `v*`).
