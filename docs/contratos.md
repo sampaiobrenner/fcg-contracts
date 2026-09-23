@@ -27,7 +27,25 @@ public sealed record PaymentProcessedEvent(Guid EventId, DateTime OccurredAt, Gu
 
 Exchanges: uma por evento, com o nome do `[EntityName]` (`fcg.user-created.v1`, `fcg.order-placed.v1`, `fcg.payment-processed.v1`), criadas pelo MassTransit.
 
-Filas: cada consumidor fixa o nome da fila com a constante de `Fcg.Contracts.Messaging.QueueNames` via `ConsumerDefinition.EndpointName` (nunca o nome gerado pelo formatter). Os nomes nao sao configuraveis por variavel de ambiente.
+Filas: o enunciado da Fase 2 pede ConfigMap para configuracoes nao sensiveis e cita nomes de filas como exemplo. Cada consumidor le o nome da fila da configuracao `Messaging:Queues:<Fila>` (variavel `Messaging__Queues__<Fila>`, vinda do ConfigMap) e usa a constante de `Fcg.Contracts.Messaging.QueueNames` como default, aplicando o valor em `ConsumerDefinition.EndpointName` (nunca o nome gerado pelo formatter).
+
+| Fila | Variavel (ConfigMap) | Default (`QueueNames`) | Servico |
+|---|---|---|---|
+| `notifications.user-created` | `Messaging__Queues__NotificationsUserCreated` | `NotificationsUserCreated` | Notifications |
+| `payments.order-placed` | `Messaging__Queues__PaymentsOrderPlaced` | `PaymentsOrderPlaced` | Payments |
+| `catalog.payment-processed` | `Messaging__Queues__CatalogPaymentProcessed` | `CatalogPaymentProcessed` | Catalog |
+| `notifications.payment-processed` | `Messaging__Queues__NotificationsPaymentProcessed` | `NotificationsPaymentProcessed` | Notifications |
+
+Exemplo:
+```csharp
+public sealed class OrderPlacedConsumerDefinition : ConsumerDefinition<OrderPlacedConsumer>
+{
+    public OrderPlacedConsumerDefinition(IConfiguration configuration)
+        => EndpointName = configuration[$"Messaging:Queues:{nameof(QueueNames.PaymentsOrderPlaced)}"] ?? QueueNames.PaymentsOrderPlaced;
+}
+```
+
+Especificacao AsyncAPI 3.0 dos eventos: [asyncapi.yaml](asyncapi.yaml).
 
 Padrao de consumo:
 - Retry em memoria `UseMessageRetry` com intervalos 1s/5s/15s/30s, ignorando `BusinessException` e `ValidationException`. Esgotado, a mensagem vai para a fila `<fila>_error` do MassTransit.
@@ -48,7 +66,7 @@ Padrao de consumo:
 | Services K8s | `users-api:80`, `catalog-api:80`, `payments-api:80`, `notifications-api:80`, `rabbitmq:5672`, `postgres:5432` |
 | Health | `/health/live`, `/health/ready` (ready checa DB + RabbitMQ) |
 | Banco | 1 Postgres, 1 database por servico: `fcg_users`, `fcg_catalog`, `fcg_payments`, `fcg_notifications` |
-| ConfigMap | `ASPNETCORE_ENVIRONMENT`, `Database__ApplyMigrationsOnStartup`, `RabbitMq__Host`, `RabbitMq__VirtualHost`, `Jwt__Issuer`, `Jwt__Audience`; UsersAPI: `Jwt__ExpirationMinutes`; PaymentsAPI: `Payments__ApprovalLimit` |
+| ConfigMap | `ASPNETCORE_ENVIRONMENT`, `Database__ApplyMigrationsOnStartup`, `RabbitMq__Host`, `RabbitMq__VirtualHost`, `Jwt__Issuer`, `Jwt__Audience`; `Messaging__Queues__<Fila>` dos consumidores; UsersAPI: `Jwt__ExpirationMinutes`; PaymentsAPI: `Payments__ApprovalLimit` |
 | Secret | `ConnectionStrings__Default`, `RabbitMq__Username`, `RabbitMq__Password`, `Jwt__Key` |
 | Erros HTTP | `ProblemDetails` (RFC 7807): 400 validacao, 401 nao autenticado, 403 sem permissao, 404 nao encontrado, 409 conflito, 422 regra de negocio |
 | JSON REST | camelCase, enums como string, datas ISO 8601 UTC |
