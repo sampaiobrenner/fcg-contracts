@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      nuget-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Versoes maiores sao comerciais: manter MassTransit 8.x, MediatR 12.x e FluentAssertions 7.x
+      - dependency-name: "MassTransit*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "MediatR*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "FluentAssertions"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
