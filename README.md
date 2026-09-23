@@ -13,7 +13,7 @@ dotnet add package PosTech.Fiap.CloudGames.Contracts
 Com Central Package Management, declare a versao em `Directory.Packages.props`:
 
 ```xml
-<PackageVersion Include="PosTech.Fiap.CloudGames.Contracts" Version="0.1.0" />
+<PackageVersion Include="PosTech.Fiap.CloudGames.Contracts" Version="1.0.0" />
 ```
 
 ## Conteudo
@@ -47,8 +47,8 @@ SemVer. Evolucao somente aditiva (campos opcionais). Mudanca incompativel = novo
 Automatica pelo workflow [publish.yml](.github/workflows/publish.yml) ao criar uma tag `v*` na `main`. A versao do pacote e a da tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 A autenticacao usa **Trusted Publishing** (OIDC): a policy `fcg-contracts-publish` no nuget.org (owner `sampaiobrenner`) autoriza este repositorio e o workflow `publish.yml` a publicar com um token temporario, sem secrets. O nuget.org leva alguns minutos para indexar uma versao nova.

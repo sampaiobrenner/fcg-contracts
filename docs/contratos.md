@@ -1,7 +1,7 @@
 # Contratos de integracao - FCG Fase 2
 
-> **Status: proposta (v0.1.0).** Aprovacao pendente na historia FD-01 do [Azure Boards](https://dev.azure.com/PosTech-Fiap-CloudGames/PosTech-Fiap-CloudGames/_workitems).
-> Apos aprovacao pelos 5 membros o pacote e versionado como `1.0.0`. Mudancas somente via PR neste repositorio.
+> **Status: aprovado - v1.0.0 (22/09/2026).** Historia FD-01 no [Azure Boards](https://dev.azure.com/PosTech-Fiap-CloudGames/PosTech-Fiap-CloudGames/_workitems/edit/25). Pacote `PosTech.Fiap.CloudGames.Contracts` **1.0.0**.
+> Mudancas somente via PR neste repositorio. Evolucao so aditiva (campos opcionais, nova minor); quebra = novo namespace `V2` em paralelo.
 
 ## 1. Eventos v1 (`Fcg.Contracts.Events.V1`)
 ```csharp

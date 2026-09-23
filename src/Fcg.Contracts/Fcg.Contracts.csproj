@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>PosTech.Fiap.CloudGames.Contracts</PackageId>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <Authors>FCG - Grupo Fase 2</Authors>
     <Description>Contratos de integracao (eventos, filas e claims) da plataforma FIAP Cloud Games.</Description>
     <RepositoryUrl>https://github.com/sampaiobrenner/fcg-contracts</RepositoryUrl>

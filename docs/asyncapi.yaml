@@ -1,7 +1,7 @@
 asyncapi: 3.1.0
 info:
   title: FCG - Eventos de integracao
-  version: 0.1.0
+  version: 1.0.0
   description: |
     Eventos trocados entre os microsservicos da FIAP Cloud Games (Fase 2) via RabbitMQ + MassTransit 8.
     Cada evento e publicado em uma exchange fanout com o nome do `[EntityName]` e cada consumidor
