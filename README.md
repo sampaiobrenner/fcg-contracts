@@ -38,6 +38,8 @@ O MassTransit roteia mensagens pelo tipo. Cada evento declara `[MessageUrn]` e `
 
 ## Versionamento
 
+**Mudancas de contrato somente via PR neste repositorio**, nunca localmente em um servico.
+
 SemVer. Evolucao somente aditiva (campos opcionais). Mudanca incompativel = novo namespace `V2` publicado em paralelo ao `V1` (parallel change) ate que todos os consumidores migrem.
 
 ## Publicacao
