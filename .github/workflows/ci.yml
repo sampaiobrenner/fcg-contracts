@@ -28,3 +28,14 @@ jobs:
         with:
           name: nuget
           path: artifacts/*.nupkg
+
+  asyncapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npx -y @asyncapi/cli validate docs/asyncapi.yaml

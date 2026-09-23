@@ -1,0 +1,206 @@
+asyncapi: 3.1.0
+info:
+  title: FCG - Eventos de integracao
+  version: 0.1.0
+  description: |
+    Eventos trocados entre os microsservicos da FIAP Cloud Games (Fase 2) via RabbitMQ + MassTransit 8.
+    Cada evento e publicado em uma exchange fanout com o nome do `[EntityName]` e cada consumidor
+    le a sua fila de `Messaging__Queues__<Fila>` (ConfigMap), com default nas constantes `QueueNames`.
+    Especificacao completa: docs/contratos.md.
+  license:
+    name: MIT
+
+defaultContentType: application/vnd.masstransit+json
+
+servers:
+  rabbitmq:
+    host: rabbitmq:5672
+    protocol: amqp
+    protocolVersion: 0.9.1
+    description: RabbitMQ 4 (Service `rabbitmq` no Kubernetes e no docker-compose).
+
+channels:
+  userCreated:
+    address: fcg.user-created.v1
+    title: UserCreatedEvent
+    messages:
+      userCreated:
+        $ref: '#/components/messages/UserCreatedEvent'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: fcg.user-created.v1
+          type: fanout
+          durable: true
+          autoDelete: false
+  orderPlaced:
+    address: fcg.order-placed.v1
+    title: OrderPlacedEvent
+    messages:
+      orderPlaced:
+        $ref: '#/components/messages/OrderPlacedEvent'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: fcg.order-placed.v1
+          type: fanout
+          durable: true
+          autoDelete: false
+  paymentProcessed:
+    address: fcg.payment-processed.v1
+    title: PaymentProcessedEvent
+    messages:
+      paymentProcessed:
+        $ref: '#/components/messages/PaymentProcessedEvent'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: fcg.payment-processed.v1
+          type: fanout
+          durable: true
+          autoDelete: false
+
+operations:
+  publishUserCreated:
+    action: send
+    summary: UsersAPI publica ao cadastrar um usuario (e ao criar o administrador no seed).
+    channel:
+      $ref: '#/channels/userCreated'
+  consumeUserCreatedNotifications:
+    action: receive
+    summary: NotificationsAPI - fila notifications.user-created (Messaging__Queues__NotificationsUserCreated).
+    channel:
+      $ref: '#/channels/userCreated'
+  publishOrderPlaced:
+    action: send
+    summary: CatalogAPI publica ao aceitar POST /api/v1/orders (202 Pending).
+    channel:
+      $ref: '#/channels/orderPlaced'
+  consumeOrderPlacedPayments:
+    action: receive
+    summary: PaymentsAPI - fila payments.order-placed (Messaging__Queues__PaymentsOrderPlaced).
+    channel:
+      $ref: '#/channels/orderPlaced'
+  publishPaymentProcessed:
+    action: send
+    summary: PaymentsAPI publica o resultado da simulacao (Price <= Payments__ApprovalLimit aprova).
+    channel:
+      $ref: '#/channels/paymentProcessed'
+  consumePaymentProcessedCatalog:
+    action: receive
+    summary: CatalogAPI - fila catalog.payment-processed (Messaging__Queues__CatalogPaymentProcessed). Approved adiciona o jogo a biblioteca.
+    channel:
+      $ref: '#/channels/paymentProcessed'
+  consumePaymentProcessedNotifications:
+    action: receive
+    summary: NotificationsAPI - fila notifications.payment-processed (Messaging__Queues__NotificationsPaymentProcessed). Approved envia e-mail de confirmacao.
+    channel:
+      $ref: '#/channels/paymentProcessed'
+
+components:
+  messages:
+    UserCreatedEvent:
+      name: UserCreatedEvent
+      title: Usuario criado
+      summary: 'MessageUrn: urn:message:fcg:user-created:v1'
+      payload:
+        $ref: '#/components/schemas/UserCreatedEvent'
+      examples:
+        - name: amostra
+          payload:
+            eventId: 0199a1b2-0000-7000-8000-000000000001
+            occurredAt: '2026-10-01T12:00:00Z'
+            userId: 0199a1b2-0000-7000-8000-0000000000a1
+            name: Ada Lovelace
+            email: ada@fcg.dev
+    OrderPlacedEvent:
+      name: OrderPlacedEvent
+      title: Pedido de compra realizado
+      summary: 'MessageUrn: urn:message:fcg:order-placed:v1. OrderId e o correlation id da compra.'
+      payload:
+        $ref: '#/components/schemas/OrderPlacedEvent'
+      examples:
+        - name: amostra
+          payload:
+            eventId: 0199a1b2-0000-7000-8000-000000000002
+            occurredAt: '2026-10-01T12:05:00Z'
+            orderId: 0199a1b2-0000-7000-8000-0000000000c1
+            userId: 0199a1b2-0000-7000-8000-0000000000a1
+            gameId: 0199a1b2-0000-7000-8000-0000000000b1
+            price: 199.9
+    PaymentProcessedEvent:
+      name: PaymentProcessedEvent
+      title: Pagamento processado
+      summary: 'MessageUrn: urn:message:fcg:payment-processed:v1'
+      payload:
+        $ref: '#/components/schemas/PaymentProcessedEvent'
+      examples:
+        - name: amostra
+          payload:
+            eventId: 0199a1b2-0000-7000-8000-000000000003
+            occurredAt: '2026-10-01T12:05:02Z'
+            orderId: 0199a1b2-0000-7000-8000-0000000000c1
+            userId: 0199a1b2-0000-7000-8000-0000000000a1
+            gameId: 0199a1b2-0000-7000-8000-0000000000b1
+            price: 199.9
+            status: Approved
+            reason: null
+
+  schemas:
+    EventBase:
+      type: object
+      required: [eventId, occurredAt]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Novo a cada publicacao (Guid v7).
+        occurredAt:
+          type: string
+          format: date-time
+          description: UTC.
+    Money:
+      type: number
+      multipleOf: 0.01
+      minimum: 0
+      description: Valor em BRL com 2 casas decimais.
+    UserCreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [userId, name, email]
+          properties:
+            userId: { type: string, format: uuid }
+            name: { type: string, maxLength: 120 }
+            email: { type: string, format: email, maxLength: 320 }
+    OrderPlacedEvent:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [orderId, userId, gameId, price]
+          properties:
+            orderId: { type: string, format: uuid }
+            userId: { type: string, format: uuid }
+            gameId: { type: string, format: uuid }
+            price:
+              $ref: '#/components/schemas/Money'
+    PaymentProcessedEvent:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [orderId, userId, gameId, price, status]
+          properties:
+            orderId: { type: string, format: uuid }
+            userId: { type: string, format: uuid }
+            gameId: { type: string, format: uuid }
+            price:
+              $ref: '#/components/schemas/Money'
+            status:
+              type: string
+              enum: [Approved, Rejected]
+            reason:
+              type: [string, 'null']
+              description: Preenchido quando Rejected.
